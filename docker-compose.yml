@@ -1,0 +1,56 @@
+services:
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        ollama serve &
+        PID=$$!
+        echo "Waiting for Ollama to initialize..."
+        until ollama list >/dev/null 2>&1; do
+          sleep 2
+        done
+        echo "Ollama ready. Pulling model llama3.1:8b (this may take a few minutes depending on connection)..."
+        ollama pull llama3.1:8b
+        echo "Model llama3.1:8b successfully pulled!"
+        wait $$PID
+    healthcheck:
+      test: ["CMD-SHELL", "ollama list | grep -q 'llama3.1:8b'"]
+      interval: 10s
+      timeout: 10s
+      retries: 120
+      start_period: 15s
+
+  bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: bot
+    restart: always
+    ports:
+      - "8000:8000"
+    volumes:
+      - db_data:/app/data
+    env_file:
+      - .env
+    environment:
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - DATABASE_URL=sqlite:///app/data/newsletter.db
+    depends_on:
+      ollama:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/healthz"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  ollama_data:
+  db_data:
