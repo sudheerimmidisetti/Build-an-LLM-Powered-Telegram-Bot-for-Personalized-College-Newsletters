@@ -1,0 +1,8 @@
+{
+  "test_user": {
+    "chat_id": "123456789",
+    "college": "School of Engineering",
+    "program": "Computer Science"
+  },
+  "weather_location": "New York,US"
+}
